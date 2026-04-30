@@ -92,8 +92,9 @@ async function filesToContentBlocks(files: File[]): Promise<Anthropic.Messages.C
 
 function enrichAnthropicError(err: unknown): Error {
   const msg = err instanceof Error ? err.message : String(err);
-  if (/401|authentication/i.test(msg)) return new Error("Anthropic API key is invalid or missing.");
+  if (/401|authentication_error|invalid x-api-key/i.test(msg)) return new Error("Anthropic API key is invalid or missing.");
   if (/429|rate.?limit/i.test(msg)) return new Error("Anthropic rate limit exceeded. Please wait and retry.");
+  if (/credit\s+balance|credit_balance_insufficient/i.test(msg)) return new Error(`Anthropic error: ${msg}`);
   return new Error(`Anthropic error: ${msg}`);
 }
 

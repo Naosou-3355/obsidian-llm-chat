@@ -66,7 +66,39 @@ function extractErrorDetails(e: unknown): Record<string, unknown> {
   return details;
 }
 
-// Helper: adds a Test button with inline status and a save-log button
+const ERROR_REFERENCE_TABLE = `
+## Common errors reference
+
+| Error | Meaning | Fix |
+|-------|---------|-----|
+| \`401 authentication_error\` | API key is invalid or missing | Regenerate at console.anthropic.com → API Keys |
+| \`400 credit_balance_insufficient\` | API credits depleted | Add credits at console.anthropic.com → Billing. **Note: Claude.ai Max/Pro subscription ≠ API credits — they are billed separately.** |
+| \`403 permission_error\` | Model not accessible on your plan | Upgrade your API tier or choose a different model |
+| \`429 rate_limit_error\` | Too many requests | Wait a moment and retry |
+| \`529 overloaded_error\` | Anthropic servers overloaded | Retry later |
+| \`400 invalid_request_error\` | Malformed request or wrong model ID | Check the model name in Settings |
+| OpenAI \`401\` | Invalid API key | Regenerate at platform.openai.com → API Keys |
+| OpenAI \`429\` | Quota exceeded | Check usage at platform.openai.com → Usage |
+| Google \`400\` | Invalid API key | Regenerate at aistudio.google.com → API Keys |
+| Ollama connection refused | Ollama not running | Start Ollama: \`ollama serve\` |
+
+> **Claude.ai subscription vs Anthropic API**: A Claude.ai Max/Pro plan gives you access to claude.ai in the browser. It does **not** grant API access. API usage requires separate credits purchased at console.anthropic.com → Billing.
+`;
+
+// Helper: downloads a string as a .md file in the browser
+function downloadAsMd(filename: string, content: string): void {
+  const blob = new Blob([content], { type: "text/markdown" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// Helper: adds a Test button with inline status and a download-log button
 function addApiKeyTestButton(setting: Setting, providerName: string, testFn: () => Promise<void>): void {
   const statusEl = setting.controlEl.createSpan({ cls: "obsidian-agent__api-test-status" });
   let savedLog = "";
@@ -80,28 +112,33 @@ function addApiKeyTestButton(setting: Setting, providerName: string, testFn: () 
 
       const ts = new Date().toISOString();
       const logLines: string[] = [
-        `Nao's LLM — API key test log`,
-        `Provider : ${providerName}`,
-        `Timestamp: ${ts}`,
-        "─".repeat(50),
+        `# Nao's LLM — API key test log`,
+        ``,
+        `- **Provider**: ${providerName}`,
+        `- **Timestamp**: ${ts}`,
+        ``,
+        ERROR_REFERENCE_TABLE,
+        `---`,
+        `## Test result`,
+        ``,
       ];
 
       try {
         await testFn();
         statusEl.textContent = "✓ Connected";
         statusEl.classList.add("obsidian-agent__api-test-status--ok");
-        logLines.push("Result: SUCCESS");
+        logLines.push("**Result**: SUCCESS ✓");
       } catch (e) {
         const raw = e instanceof Error ? e.message : String(e);
         const details = extractErrorDetails(e);
-        logLines.push("Result: FAILED");
-        logLines.push(`\nFull error:\n${JSON.stringify(details, null, 2)}`);
+        logLines.push("**Result**: FAILED ✗");
+        logLines.push(`\n**Full error object**:\n\`\`\`json\n${JSON.stringify(details, null, 2)}\n\`\`\``);
 
-        if (/credit|billing|insufficient/i.test(raw)) {
-          statusEl.textContent = "⚠ Account has no credits — key is valid";
+        // "credit balance" is Anthropic's specific phrase; avoid matching "credentials"
+        if (/credit\s+balance|credit_balance_insufficient/i.test(raw)) {
+          statusEl.textContent = "⚠ Key valid — no API credits (Claude.ai plan ≠ API credits)";
           statusEl.classList.add("obsidian-agent__api-test-status--ok");
         } else {
-          // Show full message, not truncated
           statusEl.textContent = "✗ " + raw;
           statusEl.classList.add("obsidian-agent__api-test-status--error");
         }
@@ -112,21 +149,14 @@ function addApiKeyTestButton(setting: Setting, providerName: string, testFn: () 
     });
   });
 
-  // Save-log button (always visible, active after a test is run)
+  // Download-log button — triggers browser file download as .md
   setting.addExtraButton((saveBtn) => {
-    saveBtn.setIcon("download").setTooltip("Save full test log to vault").onClick(async () => {
+    saveBtn.setIcon("download").setTooltip("Download full test log as .md").onClick(() => {
       if (!savedLog) {
         new Notice("Run the test first to generate a log.");
         return;
       }
-      try {
-        const app = getApp();
-        const fileName = `api-test-${providerName}-${Date.now()}.txt`;
-        await app.vault.create(fileName, savedLog);
-        new Notice(`Log saved: ${fileName}`);
-      } catch (err) {
-        new Notice("Could not save log: " + (err instanceof Error ? err.message : String(err)));
-      }
+      downloadAsMd(`api-test-${providerName}-${Date.now()}.md`, savedLog);
     });
   });
 }

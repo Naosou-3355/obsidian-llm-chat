@@ -2,11 +2,13 @@ import { TFile, Notice } from "obsidian";
 import { getApp, getSettings } from "src/plugin";
 
 function friendlyError(raw: string): string {
-  if (/credit|billing|insufficient/i.test(raw)) return "Account has insufficient credits. Add credits at console.anthropic.com.";
-  if (/401|authentication|api.?key|invalid.*key/i.test(raw)) return "Invalid API key — check Settings.";
+  // Check auth errors first so "credentials" never gets misclassified as "credits"
+  if (/401|authentication_error|invalid.{0,10}api.?key|invalid x-api-key/i.test(raw)) return "Invalid API key — check Settings.";
+  // Require specific Anthropic phrase to avoid matching "credentials"
+  if (/credit\s+balance|credit_balance_insufficient/i.test(raw)) return "No API credits — note: Claude.ai Max/Pro plan ≠ API credits. Add credits at console.anthropic.com.";
   if (/429|rate.?limit|quota/i.test(raw)) return "Rate limited. Please wait before retrying.";
   if (/network|fetch|ENOTFOUND|ECONNREFUSED|Failed to fetch/i.test(raw)) return "Network error. Check your connection.";
-  return raw.length > 120 ? raw.slice(0, 120) + "…" : raw;
+  return raw.length > 200 ? raw.slice(0, 200) + "…" : raw;
 }
 import { 
   exportMessage, 
