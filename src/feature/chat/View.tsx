@@ -1,6 +1,6 @@
 import { createRoot, Root } from 'react-dom/client';
 import { ItemView, WorkspaceLeaf, IconName, TFile } from 'obsidian';
-import { ObsidianAgentPlugin } from 'src/plugin';
+import { ObsidianAgentPlugin, getSettings } from 'src/plugin';
 import Chat, { ChatRef } from 'src/feature/chat/components/Chat';
 
 export const VIEW_TYPE_AGENT = 'agent-chat-view';
@@ -18,7 +18,7 @@ export class ChatView extends ItemView {
   // View characteristics
   getViewType(): string { return VIEW_TYPE_AGENT }
   getDisplayText(): string { return "Nao's LLM" }
-  getIcon(): IconName { return 'brain-cog' }
+  getIcon(): IconName { return (getSettings().sidebarIcon || 'brain-cog') as IconName; }
 
   async onOpen() {
     const root = createRoot(this.containerEl);

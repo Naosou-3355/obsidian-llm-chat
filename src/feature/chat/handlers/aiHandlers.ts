@@ -1,5 +1,12 @@
 import { TFile, Notice } from "obsidian";
 import { getApp, getSettings } from "src/plugin";
+
+function friendlyError(raw: string): string {
+  if (/401|authentication|api.?key|invalid.*key/i.test(raw)) return "Invalid API key — check Settings.";
+  if (/429|rate.?limit|quota/i.test(raw)) return "Rate limited. Please wait before retrying.";
+  if (/network|fetch|ENOTFOUND|ECONNREFUSED|Failed to fetch/i.test(raw)) return "Network error. Check your connection.";
+  return raw.length > 120 ? raw.slice(0, 120) + "…" : raw;
+}
 import { 
   exportMessage, 
   removeMessagesAfterIndexN, 
@@ -128,16 +135,16 @@ export const handleCall = async (
     // Clean up the accumulated content and tool calls
     if (callError) {
       if (getSettings().debug) console.error(callError);
-      new Notice (callError, 5000);
-      
+      new Notice(friendlyError(callError), 5000);
+
       accumulatedContent = "";
     }
-    
+
     // Create an error message to show on the chat, replacing the empty tmp message
     errorMessage = {
       sender: "error",
-      content: callError ? 
-        `${accumulatedContent}\n*Something went wrong while processing the request.*` : 
+      content: callError ?
+        `*${friendlyError(callError)}*` :
         "*No answer was generated for the request.*",
       reasoning: accumulatedReasoning,
       attachments: [],

@@ -1,8 +1,11 @@
-import { PluginSettingTab, App, Setting, DropdownComponent, TFolder } from "obsidian";
+import { PluginSettingTab, App, Setting, DropdownComponent, TFolder, setIcon } from "obsidian";
 import { ObsidianAgentPlugin, getApp, getPlugin } from "src/plugin";
 import { ChooseModelModal } from "src/feature/modals/ChooseModelModal";
 import { ThinkingLevel } from "@google/genai";
 import { allAvailableModels } from "src/settings/models";
+import { GoogleGenAI } from "@google/genai";
+import OpenAI from "openai";
+import Anthropic from "@anthropic-ai/sdk";
 
 // Interface for the settings of the plugin
 export interface AgentSettings {
@@ -23,6 +26,7 @@ export interface AgentSettings {
   readImages: boolean;
   reviewChanges: boolean;
   debug: boolean;
+  sidebarIcon: string;
 }
 
 // Default settings for the plugin
@@ -44,7 +48,31 @@ export const DEFAULT_SETTINGS: AgentSettings = {
   readImages: true,
   reviewChanges: true,
   debug: false,
+  sidebarIcon: "brain-cog",
 };
+
+// Helper: adds a Test button to a setting with inline status feedback
+function addApiKeyTestButton(setting: Setting, testFn: () => Promise<void>): void {
+  const statusEl = setting.controlEl.createSpan({ cls: "obsidian-agent__api-test-status" });
+  setting.addButton((btn) => {
+    btn.setButtonText("Test").onClick(async () => {
+      btn.setButtonText("…").setDisabled(true);
+      statusEl.textContent = "";
+      statusEl.className = "obsidian-agent__api-test-status";
+      try {
+        await testFn();
+        statusEl.textContent = "✓ Connected";
+        statusEl.classList.add("obsidian-agent__api-test-status--ok");
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        statusEl.textContent = "✗ " + msg.slice(0, 80);
+        statusEl.classList.add("obsidian-agent__api-test-status--error");
+      } finally {
+        btn.setButtonText("Test").setDisabled(false);
+      }
+    });
+  });
+}
 
 // Settings tab class
 export class AgentSettingsTab extends PluginSettingTab {
@@ -81,13 +109,16 @@ export class AgentSettingsTab extends PluginSettingTab {
         return button;
       });
 
-    // API keys — show only the relevant provider's key
+    // API keys
     new Setting(containerEl).setName("API keys").setHeading();
 
     // Google
     const googleSetting = new Setting(containerEl)
       .setName("Google API key")
       .setDesc("Required for Gemini models.");
+    if (this.plugin.settings.provider === "google") {
+      googleSetting.settingEl.addClass("obsidian-agent__settings-active-provider");
+    }
     let googleRevealed = false;
     googleSetting.addText((text) => {
       text
@@ -107,9 +138,17 @@ export class AgentSettingsTab extends PluginSettingTab {
         btn.setIcon(googleRevealed ? "eye-off" : "eye");
       });
     });
+    addApiKeyTestButton(googleSetting, async () => {
+      const ai = new GoogleGenAI({ apiKey: this.plugin.settings.googleApiKey });
+      await ai.models.generateContent({
+        model: "gemini-2.0-flash",
+        contents: [{ role: "user", parts: [{ text: "Hi" }] }],
+        config: { maxOutputTokens: 1 },
+      });
+    });
 
     // Google base URL
-    new Setting(containerEl)
+    const googleBaseUrlSetting = new Setting(containerEl)
       .setName("Google base URL")
       .setDesc("Leave blank to use the default Gemini API endpoint.")
       .addText((text) => {
@@ -121,11 +160,17 @@ export class AgentSettingsTab extends PluginSettingTab {
             await this.plugin.saveSettings();
           });
       });
+    if (this.plugin.settings.provider === "google") {
+      googleBaseUrlSetting.settingEl.addClass("obsidian-agent__settings-active-provider");
+    }
 
     // OpenAI
     const openaiSetting = new Setting(containerEl)
       .setName("OpenAI API key")
       .setDesc("Required for GPT and o-series models.");
+    if (this.plugin.settings.provider === "openai") {
+      openaiSetting.settingEl.addClass("obsidian-agent__settings-active-provider");
+    }
     let openaiRevealed = false;
     openaiSetting.addText((text) => {
       text
@@ -145,11 +190,22 @@ export class AgentSettingsTab extends PluginSettingTab {
         btn.setIcon(openaiRevealed ? "eye-off" : "eye");
       });
     });
+    addApiKeyTestButton(openaiSetting, async () => {
+      const client = new OpenAI({ apiKey: this.plugin.settings.openaiApiKey, dangerouslyAllowBrowser: true });
+      await client.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [{ role: "user", content: "Hi" }],
+        max_tokens: 1,
+      });
+    });
 
     // Anthropic
     const anthropicSetting = new Setting(containerEl)
       .setName("Anthropic API key")
       .setDesc("Required for Claude models.");
+    if (this.plugin.settings.provider === "anthropic") {
+      anthropicSetting.settingEl.addClass("obsidian-agent__settings-active-provider");
+    }
     let anthropicRevealed = false;
     anthropicSetting.addText((text) => {
       text
@@ -169,9 +225,17 @@ export class AgentSettingsTab extends PluginSettingTab {
         btn.setIcon(anthropicRevealed ? "eye-off" : "eye");
       });
     });
+    addApiKeyTestButton(anthropicSetting, async () => {
+      const client = new Anthropic({ apiKey: this.plugin.settings.anthropicApiKey, dangerouslyAllowBrowser: true });
+      await client.messages.create({
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 1,
+        messages: [{ role: "user", content: "Hi" }],
+      });
+    });
 
     // Ollama endpoint
-    new Setting(containerEl)
+    const ollamaSetting = new Setting(containerEl)
       .setName("Ollama endpoint")
       .setDesc("Base URL for your local Ollama server.")
       .addText((text) => {
@@ -183,6 +247,14 @@ export class AgentSettingsTab extends PluginSettingTab {
             await this.plugin.saveSettings();
           });
       });
+    if (this.plugin.settings.provider === "ollama") {
+      ollamaSetting.settingEl.addClass("obsidian-agent__settings-active-provider");
+    }
+    addApiKeyTestButton(ollamaSetting, async () => {
+      const base = this.plugin.settings.ollamaEndpoint.replace(/\/v1\/?$/, "");
+      const resp = await fetch(`${base}/api/version`);
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}: ${resp.statusText}`);
+    });
 
     // LLM settings
     new Setting(containerEl)
@@ -228,7 +300,7 @@ export class AgentSettingsTab extends PluginSettingTab {
         dropdown.addOption("Low", "Low");
         dropdown.addOption("High", "High");
         dropdown.addOption("Default", "Default");
-        
+
         dropdown
         .setValue(this.plugin.settings.thinkingLevel)
         .onChange(async (value) => {
@@ -237,15 +309,15 @@ export class AgentSettingsTab extends PluginSettingTab {
         });
       }
     );
-    
+
     // Agent rules
     const rulesSetting = new Setting(containerEl)
       .setName("Agent rules")
       .setDesc("Add an aditional set of rules to change the agent behaviour.");
-    
+
     rulesSetting.settingEl.classList.add("obsidian-agent__settings-rules-container");
     rulesSetting.controlEl.classList.add("obsidian-agent__settings-rules-control");
-    
+
     rulesSetting.addTextArea((text) => {
       text
         .setValue(this.plugin.settings.rules)
@@ -261,7 +333,6 @@ export class AgentSettingsTab extends PluginSettingTab {
     // History settings
     new Setting(containerEl).setName('History settings').setHeading();
 
-
     // Chat history folder
     new Setting(containerEl)
     .setName("Chat history folder")
@@ -271,7 +342,7 @@ export class AgentSettingsTab extends PluginSettingTab {
       folders.forEach(folder => {
         dropdown.addOption(folder.path, folder.name);
       });
-      
+
       dropdown
         .setValue(this.plugin.settings.chatsFolder)
         .onChange(async (value) => {
@@ -337,7 +408,30 @@ export class AgentSettingsTab extends PluginSettingTab {
             await this.plugin.saveSettings();
           })
       );
-    
+
+    // Appearance
+    new Setting(containerEl).setName("Appearance").setHeading();
+
+    const iconSetting = new Setting(containerEl)
+      .setName("Sidebar icon")
+      .setDesc("Lucide icon name for the sidebar button. Examples: bot, brain, sparkles, message-circle. Browse all at lucide.dev/icons.");
+
+    const previewEl = iconSetting.controlEl.createDiv({ cls: "obsidian-agent__icon-preview" });
+    setIcon(previewEl, (this.plugin.settings.sidebarIcon || "brain-cog") as any);
+
+    iconSetting.addText((text) => {
+      text
+        .setPlaceholder("brain-cog")
+        .setValue(this.plugin.settings.sidebarIcon)
+        .onChange(async (value) => {
+          const iconName = value.trim() || "brain-cog";
+          this.plugin.settings.sidebarIcon = iconName;
+          previewEl.empty();
+          setIcon(previewEl, iconName as any);
+          await this.plugin.saveSettings();
+        });
+    });
+
     // Developer settings
     new Setting(containerEl).setName("Developer settings").setHeading();
 
@@ -358,7 +452,7 @@ export class AgentSettingsTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName("Toggle chat panel")
-      .setDesc("Default: Ctrl+N (Windows/Linux) or Cmd+N (Mac). May conflict with 'New note' — remap either one in Obsidian Settings → Hotkeys (search for 'agent').");
+      .setDesc("Default: Ctrl+N (all platforms). May conflict with 'New note' — remap either one in Obsidian Settings → Hotkeys (search for 'agent').");
 
     new Setting(containerEl)
       .setName("Switch model")
@@ -384,6 +478,7 @@ export class AgentSettingsTab extends PluginSettingTab {
         this.plugin.settings.readImages = DEFAULT_SETTINGS.readImages;
         this.plugin.settings.reviewChanges = DEFAULT_SETTINGS.reviewChanges;
         this.plugin.settings.debug = DEFAULT_SETTINGS.debug;
+        this.plugin.settings.sidebarIcon = DEFAULT_SETTINGS.sidebarIcon;
         await this.plugin.saveSettings();
       });
       return button;

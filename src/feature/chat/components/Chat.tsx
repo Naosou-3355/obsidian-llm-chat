@@ -6,6 +6,8 @@ import Input from "src/feature/chat/components/Input";
 import { ensureActiveChat } from "src/feature/chat/handlers/chatHandlers";
 import { importConversation } from "src/utils/chat/chatHistory";
 import { Message } from "src/types/chat";
+import { AgentSettings } from "src/settings/SettingsTab";
+import { getSettings, getPlugin } from "src/plugin";
 
 export interface ChatRef {
   getActiveChat: () => TFile | null;
@@ -17,6 +19,8 @@ const Chat = forwardRef<ChatRef>((props, ref) => {
   const [conversation, setConversation] = useState<Message[]>([]);
   const [activeChat, setActiveChat] = useState<TFile | null>(null);
   const [availableChats, setAvailableChats] = useState<TFile[]>([]);
+  const [activeModel, setActiveModel] = useState<string>(getSettings().model);
+  const [activeProvider, setActiveProvider] = useState<string>(getSettings().provider);
 
   useImperativeHandle(ref, () => ({
     getActiveChat: () => activeChat,
@@ -31,22 +35,33 @@ const Chat = forwardRef<ChatRef>((props, ref) => {
       setActiveChat(chat);
       setAvailableChats(availableChats);
     };
-  
+
     fetchData();
   }, []);
 
   // Executed when the active chat file changes
   useEffect(() => {
     if (!activeChat) return;
-  
+
     const loadConversation = async () => {
       const messages = await importConversation(activeChat);
       setConversation(messages);
     };
-  
+
     loadConversation();
   }, [activeChat]);
-  
+
+  // Sync model/provider indicator with settings changes
+  useEffect(() => {
+    const plugin = getPlugin();
+    const handler = (s: AgentSettings) => {
+      setActiveModel(s.model);
+      setActiveProvider(s.provider);
+    };
+    plugin.settingsEmitter.on("settings-updated", handler);
+    return () => { plugin.settingsEmitter.off("settings-updated", handler); };
+  }, []);
+
 
   return (
     <div className="obsidian-agent__chat-main__container">
@@ -57,6 +72,12 @@ const Chat = forwardRef<ChatRef>((props, ref) => {
         setAvailableChats={setAvailableChats}
       />
 
+      <div className="obsidian-agent__model-indicator">
+        <span style={{ textTransform: "capitalize" }}>{activeProvider}</span>
+        <span> · </span>
+        <span>{activeModel}</span>
+      </div>
+
       <hr className="obsidian-agent__hr"/>
 
       <History
@@ -66,7 +87,7 @@ const Chat = forwardRef<ChatRef>((props, ref) => {
       />
 
       <hr className="obsidian-agent__hr"/>
-      
+
       <Input
         initialValue={""}
         activeChat={activeChat}

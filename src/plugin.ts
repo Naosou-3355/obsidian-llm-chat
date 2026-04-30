@@ -1,4 +1,4 @@
-import { Plugin, App, WorkspaceLeaf } from 'obsidian';
+import { Plugin, App, WorkspaceLeaf, setIcon } from 'obsidian';
 import EventEmitter from 'events';
 import { ChatView, VIEW_TYPE_AGENT } from "src/feature/chat/View";
 import { ChooseModelModal } from 'src/feature/modals/ChooseModelModal';
@@ -13,6 +13,7 @@ let pluginInstance: ObsidianAgentPlugin;
 export class ObsidianAgentPlugin extends Plugin {
   settings!: AgentSettings;
   settingsEmitter = new EventEmitter();
+  private ribbonIconEl: HTMLElement | null = null;
 
   // Method that loads the plugin
   async onload() {
@@ -24,14 +25,23 @@ export class ObsidianAgentPlugin extends Plugin {
     this.addSettingTab(new AgentSettingsTab(this.app, this));
 
     // Add agent chat view
-    this.registerView(VIEW_TYPE_AGENT, (leaf) => new ChatView(leaf, this)); 
+    this.registerView(VIEW_TYPE_AGENT, (leaf) => new ChatView(leaf, this));
     this.app.workspace.onLayoutReady(async () => {
       await this.ensureAgentViewExists();
     });
 
-    // Add sidebar ribon icon that shows the view
-    this.addRibbonIcon('brain-cog', "Nao's LLM", () => {
-      this.activateAgentChatView();
+    // Add sidebar ribbon icon — uses the user-configured icon from settings
+    this.ribbonIconEl = this.addRibbonIcon(
+      (this.settings.sidebarIcon || 'brain-cog') as any,
+      "Nao's LLM",
+      () => { this.activateAgentChatView(); }
+    );
+
+    // Update ribbon icon live when settings change
+    this.settingsEmitter.on("settings-updated", (s: AgentSettings) => {
+      if (this.ribbonIconEl) {
+        setIcon(this.ribbonIconEl, (s.sidebarIcon || 'brain-cog') as any);
+      }
     });
 
     // Hotkeys
@@ -42,10 +52,10 @@ export class ObsidianAgentPlugin extends Plugin {
         const app = getApp();
         const plugin = getPlugin();
         const settings = getSettings();
-        
+
         new ChooseModelModal(app, (model: Model) => {
-          // Change model in the settings and save changes
-          settings.model = model.name; 
+          settings.model = model.name;
+          settings.provider = model.provider;
           plugin.saveSettings();
           return;
         }).open();
@@ -54,7 +64,7 @@ export class ObsidianAgentPlugin extends Plugin {
     this.addCommand({
       id: "toggle-agent-sidebar",
       name: "Toggle agent sidebar",
-      hotkeys: [{ modifiers: ["Mod"], key: "n" }],
+      hotkeys: [{ modifiers: ["Ctrl"], key: "n" }],
       callback: () => {
         this.toggleAgentSidebar();
       }
@@ -78,18 +88,17 @@ export class ObsidianAgentPlugin extends Plugin {
     const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_AGENT);
     if (leaves.length === 0) {
       let leaf = this.app.workspace.getRightLeaf(false);
-  
-      // Si no existe un leaf, créalo explícitamente
+
       if (!leaf) {
-        leaf = this.app.workspace.getRightLeaf(true); // crea uno si no hay
+        leaf = this.app.workspace.getRightLeaf(true);
       }
-  
+
       if (leaf) {
         await leaf.setViewState({ type: VIEW_TYPE_AGENT, active: false });
       }
     }
   }
-  
+
   // Toggle agent sidebar: if open, close it; if closed, open it
   toggleAgentSidebar(): void {
     const { workspace } = this.app;

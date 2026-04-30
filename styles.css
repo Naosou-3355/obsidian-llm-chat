@@ -758,6 +758,49 @@
   
 
 /* ==============================
+    ICON PICKER PREVIEW
+============================== */
+.obsidian-agent__icon-preview {
+    display: inline-flex;
+    align-items: center;
+    margin-right: 0.5rem;
+    color: var(--text-normal);
+}
+
+/* ==============================
+    API KEY TEST STATUS
+============================== */
+.obsidian-agent__api-test-status {
+    font-size: var(--font-ui-small);
+    margin-left: 0.5rem;
+}
+.obsidian-agent__api-test-status--ok {
+    color: var(--color-green);
+}
+.obsidian-agent__api-test-status--error {
+    color: var(--color-red);
+}
+
+/* ==============================
+    ACTIVE PROVIDER HIGHLIGHT
+============================== */
+.obsidian-agent__settings-active-provider {
+    border-left: 2px solid var(--interactive-accent);
+    padding-left: 0.5rem;
+}
+
+/* ==============================
+    MODEL INDICATOR
+============================== */
+.obsidian-agent__model-indicator {
+    display: flex;
+    justify-content: flex-end;
+    font-size: var(--font-ui-smaller);
+    color: var(--text-faint);
+    padding: 0 0.25rem 0.25rem;
+}
+
+/* ==============================
     UTILS
 ============================== */
 .obsidian-agent__display-none {
