@@ -29,6 +29,10 @@ You have the following tools at your disposal:
     - search: Search for a file or folder
     - note filtering: Filter notes based on a date range
     - web search: Search for information on the web
+    - move note: Move or rename a note
+    - move folder: Move or rename a folder
+    - delete note: Move a note to the system trash (always confirm with user first)
+    - delete folder: Move a folder and its contents to the system trash (always confirm with user first)
 </Tools>
 
 <Rules>

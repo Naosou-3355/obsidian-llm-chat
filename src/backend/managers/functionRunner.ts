@@ -6,6 +6,8 @@ import { noteFiltering, noteFilteringFunctionDeclaration } from "src/backend/too
 import { listFiles, listFilesFunctionDeclaration } from "src/backend/tools/obsidian/obsListing";
 import { vaultSearch, vaultSearchFunctionDeclaration } from "src/backend/tools/obsidian/obsSearch";
 import { webSearch, webSearchFunctionDeclaration } from "src/backend/tools/webSearch";
+import { moveNote, moveNoteFunctionDeclaration, moveFolder, moveFolderFunctionDeclaration } from "src/backend/tools/obsidian/obsMove";
+import { deleteNote, deleteNoteFunctionDeclaration, deleteFolder, deleteFolderFunctionDeclaration } from "src/backend/tools/obsidian/obsDelete";
 
 // Provider-agnostic function call descriptor
 interface FunctionCallDescriptor {
@@ -23,6 +25,10 @@ export const callableFunctionDeclarations = [
   listFilesFunctionDeclaration,
   vaultSearchFunctionDeclaration,
   webSearchFunctionDeclaration,
+  moveNoteFunctionDeclaration,
+  moveFolderFunctionDeclaration,
+  deleteNoteFunctionDeclaration,
+  deleteFolderFunctionDeclaration,
 ]
 
 export async function executeFunction(funcCall: FunctionCallDescriptor) {
@@ -91,6 +97,32 @@ export async function executeFunction(funcCall: FunctionCallDescriptor) {
       response = await vaultSearch(
         funcCall.args!.name as string,
         funcCall.args!.isNote as boolean,
+      );
+      break;
+
+    case "move_note":
+      response = await moveNote(
+        funcCall.args!.fileName as string,
+        funcCall.args!.newPath as string,
+      );
+      break;
+
+    case "move_folder":
+      response = await moveFolder(
+        funcCall.args!.dirPath as string,
+        funcCall.args!.newPath as string,
+      );
+      break;
+
+    case "delete_note":
+      response = await deleteNote(
+        funcCall.args!.fileName as string,
+      );
+      break;
+
+    case "delete_folder":
+      response = await deleteFolder(
+        funcCall.args!.dirPath as string,
       );
       break;
 
