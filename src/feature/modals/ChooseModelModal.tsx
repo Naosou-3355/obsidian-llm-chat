@@ -1,4 +1,4 @@
-import { FuzzySuggestModal, App, FuzzyMatch } from 'obsidian';
+import { SuggestModal, App } from 'obsidian';
 import { getSettings } from 'src/plugin';
 import { allAvailableModels } from 'src/settings/models';
 import { Model } from 'src/types/ai';
@@ -19,7 +19,7 @@ const PROVIDER_LABELS: Record<string, string> = {
 
 const PROVIDER_ORDER = ["google", "openai", "anthropic", "ollama"];
 
-export class ChooseModelModal extends FuzzySuggestModal<ModalItem> {
+export class ChooseModelModal extends SuggestModal<ModalItem> {
   private onChoose: (model: Model) => void;
   protected activeModel: string;
 
@@ -31,21 +31,11 @@ export class ChooseModelModal extends FuzzySuggestModal<ModalItem> {
     this.setPlaceholder("Search models or scroll to browse by provider…");
   }
 
-  // Required by FuzzySuggestModal but we override getSuggestions directly
-  getItems(): ModalItem[] {
-    return allAvailableModels;
-  }
-
-  getItemText(item: ModalItem): string {
-    return 'isSeparator' in item ? "" : item.name;
-  }
-
-  // When no query → grouped view with provider headings
-  // When searching → flat filtered list, no headings
-  getSuggestions(query: string): FuzzyMatch<ModalItem>[] {
+  // No query → grouped view with provider headings (separators injected)
+  // With query → flat filtered list, no headings
+  getSuggestions(query: string): ModalItem[] {
     const settings = getSettings();
 
-    // Always show the current Ollama model (whatever was configured in settings)
     const models: Model[] = allAvailableModels.map(m => {
       if (m.provider === "ollama") {
         return {
@@ -58,53 +48,33 @@ export class ChooseModelModal extends FuzzySuggestModal<ModalItem> {
     });
 
     if (!query.trim()) {
-      const result: FuzzyMatch<ModalItem>[] = [];
-
+      const result: ModalItem[] = [];
       for (const provider of PROVIDER_ORDER) {
         const group = models.filter(m => m.provider === provider);
         if (!group.length) continue;
-
-        result.push({
-          item: { isSeparator: true, label: PROVIDER_LABELS[provider] ?? provider },
-          match: { score: 0, matches: [] },
-        } as FuzzyMatch<ModalItem>);
-
-        group.forEach(model => {
-          result.push({
-            item: model,
-            match: { score: 0, matches: [] },
-          } as FuzzyMatch<ModalItem>);
-        });
+        result.push({ isSeparator: true, label: PROVIDER_LABELS[provider] ?? provider });
+        group.forEach(model => result.push(model));
       }
-
       return result;
     }
 
     // Flat search across all models
     const q = query.toLowerCase();
-    return models
-      .filter(m =>
-        m.name.toLowerCase().includes(q) ||
-        m.description.toLowerCase().includes(q) ||
-        m.provider.toLowerCase().includes(q)
-      )
-      .map(model => ({
-        item: model,
-        match: { score: 1, matches: [] },
-      } as FuzzyMatch<ModalItem>));
+    return models.filter(m =>
+      m.name.toLowerCase().includes(q) ||
+      m.description.toLowerCase().includes(q) ||
+      m.provider.toLowerCase().includes(q)
+    );
   }
 
-  onChooseItem(item: ModalItem): void {
+  onChooseSuggestion(item: ModalItem, _evt: MouseEvent | KeyboardEvent): void {
     if ('isSeparator' in item) return;
     this.onChoose(item);
-    this.close();
   }
 
-  renderSuggestion(match: FuzzyMatch<ModalItem>, el: HTMLElement): void {
-    const { item } = match;
+  renderSuggestion(item: ModalItem, el: HTMLElement): void {
     el.empty();
 
-    // Provider section heading
     if ('isSeparator' in item) {
       el.addClass("obsidian-agent__model-modal__separator");
       el.setText(item.label);

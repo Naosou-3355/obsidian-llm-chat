@@ -8,8 +8,11 @@ import { imageToBase64 } from "src/utils/parsing/imageBase64";
 
 
 function getClient(settings: AgentSettings, baseURL?: string): OpenAI {
+  // Ollama accepts any non-empty string as the API key; fall back to "ollama" when
+  // a custom baseURL is set (Ollama) and no OpenAI key has been provided.
+  const apiKey = settings.openaiApiKey || (baseURL ? "ollama" : "");
   return new OpenAI({
-    apiKey: settings.openaiApiKey,
+    apiKey,
     baseURL: baseURL ?? undefined,
     dangerouslyAllowBrowser: true,
   });
@@ -152,7 +155,8 @@ export class OpenAIProvider implements LLMClient {
       messages,
       tools,
       stream: true,
-      stream_options: { include_usage: true },
+      // stream_options is OpenAI-specific; Ollama (custom baseURL) doesn't support it
+      ...(this.baseURL ? {} : { stream_options: { include_usage: true } }),
     });
 
     let accText = "";

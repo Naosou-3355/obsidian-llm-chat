@@ -58,9 +58,8 @@ export default function Input({
   }, []);
   
   useEffect(() => {
-    // Find the model in the list of available models and check if can upload images or not
-    const model: Model = allAvailableModels.find(model => model.name === selectedModel)!;
-    setCanUpload(model.capabilities.includes("vision"));
+    const model = allAvailableModels.find(m => m.name === selectedModel);
+    setCanUpload(model?.capabilities.includes("vision") ?? false);
   }, [selectedModel])
 
   // Disable or not the button
