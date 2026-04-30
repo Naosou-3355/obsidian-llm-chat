@@ -436,6 +436,16 @@
     color: var(--text-muted);
 }
 
+.obsidian-agent__model-modal__separator {
+    font-size: var(--font-ui-smaller);
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    padding: 8px 6px 2px;
+    pointer-events: none;
+}
+
 /* DeleteChatModal.tsx */
 .obsidian-agent__delete-chat-modal__container {
     display: flex;
