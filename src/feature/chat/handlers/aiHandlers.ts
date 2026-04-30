@@ -2,6 +2,7 @@ import { TFile, Notice } from "obsidian";
 import { getApp, getSettings } from "src/plugin";
 
 function friendlyError(raw: string): string {
+  if (/credit|billing|insufficient/i.test(raw)) return "Account has insufficient credits. Add credits at console.anthropic.com.";
   if (/401|authentication|api.?key|invalid.*key/i.test(raw)) return "Invalid API key — check Settings.";
   if (/429|rate.?limit|quota/i.test(raw)) return "Rate limited. Please wait before retrying.";
   if (/network|fetch|ENOTFOUND|ECONNREFUSED|Failed to fetch/i.test(raw)) return "Network error. Check your connection.";

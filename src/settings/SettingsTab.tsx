@@ -1,4 +1,4 @@
-import { PluginSettingTab, App, Setting, DropdownComponent, TFolder, setIcon } from "obsidian";
+import { PluginSettingTab, App, Setting, DropdownComponent, TFolder, setIcon, Notice } from "obsidian";
 import { ObsidianAgentPlugin, getApp, getPlugin } from "src/plugin";
 import { ChooseModelModal } from "src/feature/modals/ChooseModelModal";
 import { ThinkingLevel } from "@google/genai";
@@ -51,24 +51,81 @@ export const DEFAULT_SETTINGS: AgentSettings = {
   sidebarIcon: "brain-cog",
 };
 
-// Helper: adds a Test button to a setting with inline status feedback
-function addApiKeyTestButton(setting: Setting, testFn: () => Promise<void>): void {
+// Extracts all available fields from an SDK error object into a plain record
+function extractErrorDetails(e: unknown): Record<string, unknown> {
+  if (!(e instanceof Error)) return { raw: String(e) };
+  const details: Record<string, unknown> = { name: e.name, message: e.message };
+  const a = e as any;
+  if (a.status !== undefined) details.status = a.status;
+  if (a.statusCode !== undefined) details.statusCode = a.statusCode;
+  if (a.code !== undefined) details.code = a.code;
+  if (a.type !== undefined) details.type = a.type;
+  if (a.error !== undefined) details.error = a.error;
+  if (a.param !== undefined) details.param = a.param;
+  if (a.stack) details.stack = a.stack;
+  return details;
+}
+
+// Helper: adds a Test button with inline status and a save-log button
+function addApiKeyTestButton(setting: Setting, providerName: string, testFn: () => Promise<void>): void {
   const statusEl = setting.controlEl.createSpan({ cls: "obsidian-agent__api-test-status" });
+  let savedLog = "";
+
   setting.addButton((btn) => {
     btn.setButtonText("Test").onClick(async () => {
       btn.setButtonText("…").setDisabled(true);
       statusEl.textContent = "";
       statusEl.className = "obsidian-agent__api-test-status";
+      savedLog = "";
+
+      const ts = new Date().toISOString();
+      const logLines: string[] = [
+        `Nao's LLM — API key test log`,
+        `Provider : ${providerName}`,
+        `Timestamp: ${ts}`,
+        "─".repeat(50),
+      ];
+
       try {
         await testFn();
         statusEl.textContent = "✓ Connected";
         statusEl.classList.add("obsidian-agent__api-test-status--ok");
+        logLines.push("Result: SUCCESS");
       } catch (e) {
-        const msg = e instanceof Error ? e.message : String(e);
-        statusEl.textContent = "✗ " + msg.slice(0, 80);
-        statusEl.classList.add("obsidian-agent__api-test-status--error");
+        const raw = e instanceof Error ? e.message : String(e);
+        const details = extractErrorDetails(e);
+        logLines.push("Result: FAILED");
+        logLines.push(`\nFull error:\n${JSON.stringify(details, null, 2)}`);
+
+        if (/credit|billing|insufficient/i.test(raw)) {
+          statusEl.textContent = "⚠ Account has no credits — key is valid";
+          statusEl.classList.add("obsidian-agent__api-test-status--ok");
+        } else {
+          // Show full message, not truncated
+          statusEl.textContent = "✗ " + raw;
+          statusEl.classList.add("obsidian-agent__api-test-status--error");
+        }
       } finally {
         btn.setButtonText("Test").setDisabled(false);
+        savedLog = logLines.join("\n");
+      }
+    });
+  });
+
+  // Save-log button (always visible, active after a test is run)
+  setting.addExtraButton((saveBtn) => {
+    saveBtn.setIcon("download").setTooltip("Save full test log to vault").onClick(async () => {
+      if (!savedLog) {
+        new Notice("Run the test first to generate a log.");
+        return;
+      }
+      try {
+        const app = getApp();
+        const fileName = `api-test-${providerName}-${Date.now()}.txt`;
+        await app.vault.create(fileName, savedLog);
+        new Notice(`Log saved: ${fileName}`);
+      } catch (err) {
+        new Notice("Could not save log: " + (err instanceof Error ? err.message : String(err)));
       }
     });
   });
@@ -138,7 +195,7 @@ export class AgentSettingsTab extends PluginSettingTab {
         btn.setIcon(googleRevealed ? "eye-off" : "eye");
       });
     });
-    addApiKeyTestButton(googleSetting, async () => {
+    addApiKeyTestButton(googleSetting, "google", async () => {
       const ai = new GoogleGenAI({ apiKey: this.plugin.settings.googleApiKey });
       await ai.models.generateContent({
         model: "gemini-2.0-flash",
@@ -190,7 +247,7 @@ export class AgentSettingsTab extends PluginSettingTab {
         btn.setIcon(openaiRevealed ? "eye-off" : "eye");
       });
     });
-    addApiKeyTestButton(openaiSetting, async () => {
+    addApiKeyTestButton(openaiSetting, "openai", async () => {
       const client = new OpenAI({ apiKey: this.plugin.settings.openaiApiKey, dangerouslyAllowBrowser: true });
       await client.chat.completions.create({
         model: "gpt-4o-mini",
@@ -225,10 +282,10 @@ export class AgentSettingsTab extends PluginSettingTab {
         btn.setIcon(anthropicRevealed ? "eye-off" : "eye");
       });
     });
-    addApiKeyTestButton(anthropicSetting, async () => {
+    addApiKeyTestButton(anthropicSetting, "anthropic", async () => {
       const client = new Anthropic({ apiKey: this.plugin.settings.anthropicApiKey, dangerouslyAllowBrowser: true });
       await client.messages.create({
-        model: "claude-haiku-4-5-20251001",
+        model: "claude-3-5-haiku-20241022",
         max_tokens: 1,
         messages: [{ role: "user", content: "Hi" }],
       });
@@ -250,7 +307,7 @@ export class AgentSettingsTab extends PluginSettingTab {
     if (this.plugin.settings.provider === "ollama") {
       ollamaSetting.settingEl.addClass("obsidian-agent__settings-active-provider");
     }
-    addApiKeyTestButton(ollamaSetting, async () => {
+    addApiKeyTestButton(ollamaSetting, "ollama", async () => {
       const base = this.plugin.settings.ollamaEndpoint.replace(/\/v1\/?$/, "");
       const resp = await fetch(`${base}/api/version`);
       if (!resp.ok) throw new Error(`HTTP ${resp.status}: ${resp.statusText}`);
