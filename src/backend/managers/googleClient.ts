@@ -12,12 +12,25 @@ import { agentSystemPrompt } from "src/backend/managers/prompts/library";
 import { callableFunctionDeclarations } from "src/backend/managers/functionRunner";
 import { DEFAULT_SETTINGS } from "src/settings/SettingsTab";
 
+function validateBaseUrl(url: string): string {
+  const trimmed = url.trim();
+  if (!trimmed) return "https://generativelanguage.googleapis.com";
+  try {
+    const parsed = new URL(trimmed);
+    if (!["https:", "http:"].includes(parsed.protocol)) {
+      throw new Error(`URL must use http or https protocol.`);
+    }
+  } catch {
+    throw new Error(`Invalid base URL "${trimmed}". Please enter a valid HTTP(S) URL or leave blank for the default.`);
+  }
+  return trimmed;
+}
+
 export async function createGoogleClient(system: string | undefined = undefined) {
   const settings = getSettings();
 
   // Initialize model and its configuration
-  let baseUrl = settings.baseUrl.trim();
-  if (!baseUrl) baseUrl = "https://generativelanguage.googleapis.com";
+  const baseUrl = validateBaseUrl(settings.baseUrl);
   
   const config: GoogleGenAIOptions = { 
     apiKey: settings.googleApiKey, 

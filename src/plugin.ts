@@ -30,7 +30,7 @@ export class ObsidianAgentPlugin extends Plugin {
     });
 
     // Add sidebar ribon icon that shows the view
-    this.addRibbonIcon('brain-cog', 'Chat with Agent', () => {
+    this.addRibbonIcon('brain-cog', "Nao's LLM", () => {
       this.activateAgentChatView();
     });
 
@@ -54,6 +54,7 @@ export class ObsidianAgentPlugin extends Plugin {
     this.addCommand({
       id: "toggle-agent-sidebar",
       name: "Toggle agent sidebar",
+      hotkeys: [{ modifiers: ["Mod"], key: "n" }],
       callback: () => {
         this.toggleAgentSidebar();
       }

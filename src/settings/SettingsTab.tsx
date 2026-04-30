@@ -2,6 +2,7 @@ import { PluginSettingTab, App, Setting, DropdownComponent, TFolder } from "obsi
 import { ObsidianAgentPlugin, getApp, getPlugin } from "src/plugin";
 import { ChooseModelModal } from "src/feature/modals/ChooseModelModal";
 import { ThinkingLevel } from "@google/genai";
+import { allAvailableModels } from "src/settings/models";
 
 // Interface for the settings of the plugin
 export interface AgentSettings {
@@ -9,6 +10,9 @@ export interface AgentSettings {
   model: string;
   googleApiKey: string;
   baseUrl: string;
+  openaiApiKey: string;
+  anthropicApiKey: string;
+  ollamaEndpoint: string;
   temperature: string;
   thinkingLevel: string;
   maxOutputTokens: string;
@@ -27,6 +31,9 @@ export const DEFAULT_SETTINGS: AgentSettings = {
   model: "gemini-2.5-flash",
   googleApiKey: "",
   baseUrl: "",
+  openaiApiKey: "",
+  anthropicApiKey: "",
+  ollamaEndpoint: "http://localhost:11434/v1",
   temperature: "Default",
   thinkingLevel: "Default",
   maxOutputTokens: "Default",
@@ -56,7 +63,7 @@ export class AgentSettingsTab extends PluginSettingTab {
     // Language model settings
     new Setting(containerEl)
       .setName("Model")
-      .setDesc("Select the Google language model to use.")
+      .setDesc("Select the AI model to use. Supports Gemini, OpenAI, Claude, and Ollama.")
       .addButton((button) => {
         button.setButtonText(this.plugin.settings.model || "Choose model");
         button.onClick(() => {
@@ -67,20 +74,24 @@ export class AgentSettingsTab extends PluginSettingTab {
             this.plugin.settings.provider = model.provider;
             plugin.saveSettings();
             button.setButtonText(model.name);
+            // Refresh the settings tab to show the right API key field
+            this.display();
           }).open();
         });
         return button;
       });
 
-    // API keys settings
-    // GOOGLE
+    // API keys — show only the relevant provider's key
+    new Setting(containerEl).setName("API keys").setHeading();
+
+    // Google
     const googleSetting = new Setting(containerEl)
-      .setName("Google api key")
-      .setDesc("Enter your Google API key.");
+      .setName("Google API key")
+      .setDesc("Required for Gemini models.");
     let googleRevealed = false;
     googleSetting.addText((text) => {
       text
-        .setPlaceholder("Enter your API key.")
+        .setPlaceholder("Enter your Google API key.")
         .setValue(this.plugin.settings.googleApiKey)
         .onChange(async (value) => {
           this.plugin.settings.googleApiKey = value;
@@ -89,29 +100,89 @@ export class AgentSettingsTab extends PluginSettingTab {
       text.inputEl.type = "password";
     });
     googleSetting.addExtraButton((btn) => {
-      btn.setIcon("eye")
-        .setTooltip("Show/hide api key")
-        .onClick(() => {
-          googleRevealed = !googleRevealed;
-          const input = googleSetting.controlEl.querySelector("input");
-          if (input) input.type = googleRevealed ? "text" : "password";
-          btn.setIcon(googleRevealed ? "eye-off" : "eye");
-        });
+      btn.setIcon("eye").setTooltip("Show/hide").onClick(() => {
+        googleRevealed = !googleRevealed;
+        const input = googleSetting.controlEl.querySelector("input");
+        if (input) input.type = googleRevealed ? "text" : "password";
+        btn.setIcon(googleRevealed ? "eye-off" : "eye");
+      });
     });
 
-    // Base URL settings
-    const baseUrlSetting = new Setting(containerEl)
-      .setName("Base URL")
-      .setDesc("Enter your URL for the Google API. Leave blank to use the default URL.");
-    baseUrlSetting.addText((text) => {
+    // Google base URL
+    new Setting(containerEl)
+      .setName("Google base URL")
+      .setDesc("Leave blank to use the default Gemini API endpoint.")
+      .addText((text) => {
+        text
+          .setPlaceholder("https://generativelanguage.googleapis.com")
+          .setValue(this.plugin.settings.baseUrl)
+          .onChange(async (value) => {
+            this.plugin.settings.baseUrl = value;
+            await this.plugin.saveSettings();
+          });
+      });
+
+    // OpenAI
+    const openaiSetting = new Setting(containerEl)
+      .setName("OpenAI API key")
+      .setDesc("Required for GPT and o-series models.");
+    let openaiRevealed = false;
+    openaiSetting.addText((text) => {
       text
-        .setPlaceholder("https://generativelanguage.googleapis.com")
-        .setValue(this.plugin.settings.baseUrl)
+        .setPlaceholder("sk-...")
+        .setValue(this.plugin.settings.openaiApiKey)
         .onChange(async (value) => {
-          this.plugin.settings.baseUrl = value;
+          this.plugin.settings.openaiApiKey = value;
           await this.plugin.saveSettings();
         });
+      text.inputEl.type = "password";
     });
+    openaiSetting.addExtraButton((btn) => {
+      btn.setIcon("eye").setTooltip("Show/hide").onClick(() => {
+        openaiRevealed = !openaiRevealed;
+        const input = openaiSetting.controlEl.querySelector("input");
+        if (input) input.type = openaiRevealed ? "text" : "password";
+        btn.setIcon(openaiRevealed ? "eye-off" : "eye");
+      });
+    });
+
+    // Anthropic
+    const anthropicSetting = new Setting(containerEl)
+      .setName("Anthropic API key")
+      .setDesc("Required for Claude models.");
+    let anthropicRevealed = false;
+    anthropicSetting.addText((text) => {
+      text
+        .setPlaceholder("sk-ant-...")
+        .setValue(this.plugin.settings.anthropicApiKey)
+        .onChange(async (value) => {
+          this.plugin.settings.anthropicApiKey = value;
+          await this.plugin.saveSettings();
+        });
+      text.inputEl.type = "password";
+    });
+    anthropicSetting.addExtraButton((btn) => {
+      btn.setIcon("eye").setTooltip("Show/hide").onClick(() => {
+        anthropicRevealed = !anthropicRevealed;
+        const input = anthropicSetting.controlEl.querySelector("input");
+        if (input) input.type = anthropicRevealed ? "text" : "password";
+        btn.setIcon(anthropicRevealed ? "eye-off" : "eye");
+      });
+    });
+
+    // Ollama endpoint
+    new Setting(containerEl)
+      .setName("Ollama endpoint")
+      .setDesc("Base URL for your local Ollama server.")
+      .addText((text) => {
+        text
+          .setPlaceholder("http://localhost:11434/v1")
+          .setValue(this.plugin.settings.ollamaEndpoint)
+          .onChange(async (value) => {
+            this.plugin.settings.ollamaEndpoint = value;
+            await this.plugin.saveSettings();
+          });
+      });
 
     // LLM settings
     new Setting(containerEl)
@@ -268,7 +339,7 @@ export class AgentSettingsTab extends PluginSettingTab {
       );
     
     // Developer settings
-    new Setting(containerEl).setName('Developer settings').setHeading();
+    new Setting(containerEl).setName("Developer settings").setHeading();
 
     new Setting(containerEl)
       .setName("Debug mode")
@@ -282,13 +353,27 @@ export class AgentSettingsTab extends PluginSettingTab {
           })
       );
 
+    // Keyboard shortcuts info
+    new Setting(containerEl).setName("Keyboard shortcuts").setHeading();
+
+    new Setting(containerEl)
+      .setName("Toggle chat panel")
+      .setDesc("Default: Ctrl+N (Windows/Linux) or Cmd+N (Mac). May conflict with 'New note' — remap either one in Obsidian Settings → Hotkeys (search for 'agent').");
+
+    new Setting(containerEl)
+      .setName("Switch model")
+      .setDesc("No default binding. Add one via Obsidian Settings → Hotkeys (search for 'Switch model').");
+
     new Setting(containerEl)
     .setName("Reset settings")
     .setDesc("Reset settings to default values. Push the button reopen the Settings tab see the applied changes.")
     .addButton((button) => {
       button.setButtonText("Reset");
       button.onClick(async () => {
+        this.plugin.settings.provider = DEFAULT_SETTINGS.provider;
         this.plugin.settings.model = DEFAULT_SETTINGS.model;
+        this.plugin.settings.baseUrl = DEFAULT_SETTINGS.baseUrl;
+        this.plugin.settings.ollamaEndpoint = DEFAULT_SETTINGS.ollamaEndpoint;
         this.plugin.settings.temperature = DEFAULT_SETTINGS.temperature;
         this.plugin.settings.thinkingLevel = DEFAULT_SETTINGS.thinkingLevel;
         this.plugin.settings.maxOutputTokens = DEFAULT_SETTINGS.maxOutputTokens;

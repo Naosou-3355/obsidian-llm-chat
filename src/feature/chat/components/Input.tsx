@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { AtSign, X, CornerDownLeft, ChevronDown, Image } from "lucide-react";
+import { AtSign, X, CornerDownLeft, ChevronDown, Image, FileText } from "lucide-react";
 import { TFile } from "obsidian";
 import { getApp, getPlugin, getSettings } from "src/plugin";
 import { handleCall } from "src/feature/chat/handlers/aiHandlers";
@@ -20,7 +20,14 @@ export default function Input({
   attachments,
 }: InputProps) {
   const settings = getSettings();
-  const apiKey = settings.googleApiKey?.trim();
+  const apiKey = (() => {
+    switch (settings.provider) {
+      case "openai": return settings.openaiApiKey?.trim();
+      case "anthropic": return settings.anthropicApiKey?.trim();
+      case "ollama": return "ollama-local"; // Ollama doesn't need a key
+      default: return settings.googleApiKey?.trim();
+    }
+  })();
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -58,7 +65,7 @@ export default function Input({
 
   // Disable or not the button
   const getButtonTitle = () => {
-    if (!apiKey) return "Set an API key";
+    if (!apiKey) return `Set an API key for ${settings.provider}`;
     if (!message.trim()) return "Write something";
     return "Send message";
   };
@@ -180,14 +187,18 @@ export default function Input({
             </button>
           </div>
         ))}
-        {selectedFiles.map((img, index) => {
-          const previewUrl = URL.createObjectURL(img);
+        {selectedFiles.map((file, index) => {
+          const isImage = file.type.startsWith("image/");
           return (
             <div key={index} className="obsidian-agent__input__attachment-tag">
-              <img src={previewUrl!} alt={img.name} className="obsidian-agent__input__attachment-image"/>
-              <span className="obsidian-agent__input__attachment-text">{img.name}</span>
-              <button 
-                onClick={() => removeImage(index)} 
+              {isImage ? (
+                <img src={URL.createObjectURL(file)} alt={file.name} className="obsidian-agent__input__attachment-image"/>
+              ) : (
+                <FileText size={12} />
+              )}
+              <span className="obsidian-agent__input__attachment-text">{file.name}</span>
+              <button
+                onClick={() => removeImage(index)}
                 className="obsidian-agent__button-icon obsidian-agent__width-auto"
               >
                 <X size={12} />
@@ -226,7 +237,7 @@ export default function Input({
             <button
               onClick={() => fileInputRef.current?.click()}
               className="obsidian-agent__input__attach-image-button"
-              title={canUpload ? "Images" : "Image upload not supported by current model"}
+              title={canUpload ? "Attach images or documents" : "File upload not supported by current model"}
               disabled={!canUpload}
             >
               <Image size={18} />
@@ -236,7 +247,7 @@ export default function Input({
               type="file"
               ref={fileInputRef}
               onChange={handleFileSelect}
-              accept=".jpg,.jpeg,.png"
+              accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,.txt"
               multiple
             >
             </input>

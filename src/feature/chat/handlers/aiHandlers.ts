@@ -110,8 +110,9 @@ export const handleCall = async (
 
   // Call
   let callError: string = "";
+  let callUsage = undefined;
   try {
-    await callAgent(conversation, message, attachments, files, updateMessage);
+    callUsage = await callAgent(conversation, message, attachments, files, updateMessage);
   } catch (error) {
     callError = String(error);
   };
@@ -166,6 +167,7 @@ export const handleCall = async (
       attachments: [],
       toolCalls: accumulatedToolCalls,
       processed: true,
+      usage: callUsage,
     };
 
     // Replace the temporary message in the conversation state with the final bot message

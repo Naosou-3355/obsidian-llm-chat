@@ -144,6 +144,18 @@
     color: var(--text-normal);
 }
 
+/* Message usage footer */
+.obsidian-agent__message-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding-left: 0.5rem;
+    padding-top: 0.25rem;
+    font-size: 0.7em;
+    color: var(--text-faint);
+    user-select: none;
+}
+
 /* Input.tsx */
 .obsidian-agent__input__container {
     display: flex;

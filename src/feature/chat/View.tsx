@@ -17,7 +17,7 @@ export class ChatView extends ItemView {
 
   // View characteristics
   getViewType(): string { return VIEW_TYPE_AGENT }
-  getDisplayText(): string { return 'Chat with agent' }
+  getDisplayText(): string { return "Nao's LLM" }
   getIcon(): IconName { return 'brain-cog' }
 
   async onOpen() {

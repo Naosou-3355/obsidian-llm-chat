@@ -1,4 +1,3 @@
-import { FunctionCall } from "@google/genai";
 import { createNote, createNoteFunctionDeclaration } from "src/backend/tools/obsidian/obsCreate";
 import { editNote, editNoteFunctionDeclaration } from "src/backend/tools/obsidian/obsEdit";
 import { readNote, readNoteFunctionDeclaration } from "src/backend/tools/obsidian/obsRead";
@@ -7,6 +6,12 @@ import { noteFiltering, noteFilteringFunctionDeclaration } from "src/backend/too
 import { listFiles, listFilesFunctionDeclaration } from "src/backend/tools/obsidian/obsListing";
 import { vaultSearch, vaultSearchFunctionDeclaration } from "src/backend/tools/obsidian/obsSearch";
 import { webSearch, webSearchFunctionDeclaration } from "src/backend/tools/webSearch";
+
+// Provider-agnostic function call descriptor
+interface FunctionCallDescriptor {
+  name?: string;
+  args?: Record<string, unknown>;
+}
 
 
 export const callableFunctionDeclarations = [
@@ -20,7 +25,7 @@ export const callableFunctionDeclarations = [
   webSearchFunctionDeclaration,
 ]
 
-export async function executeFunction(funcCall: FunctionCall) {
+export async function executeFunction(funcCall: FunctionCallDescriptor) {
   let response;
   switch (funcCall.name) {
     case "web_search":

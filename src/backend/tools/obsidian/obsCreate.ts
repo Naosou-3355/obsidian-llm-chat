@@ -74,7 +74,9 @@ export async function createNote(
   dirPath = matchedFolder.path;
   
 
-  if (!name.endsWith('.md')) name += '.md'; 
+  if (!name.endsWith('.md')) name += '.md';
+  // Strip path separators and traversal sequences from the file name
+  name = name.replace(/\.\.\//g, '').replace(/\.\.$/, '').replace(/[/\\]/g, '-');
   let fullPath = dirPath + '/' + name; // -> ParentPath/Name.md
   if (!dirPath || dirPath === '/') fullPath = name; // -> Name.md
   

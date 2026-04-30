@@ -1,7 +1,7 @@
 {
-	"name": "ai-agent",
-	"version": "1.0.0",
-	"description": "Lend your vault to an AI agent. It can read, write, and search your notes.",
+	"name": "naos-llm",
+	"version": "1.0.1",
+	"description": "Your personal AI assistant in Obsidian. Chat with Gemini, OpenAI, Claude, or local Ollama models.",
 	"main": "main.js",
 	"scripts": {
 		"dev": "node esbuild.config.mjs",
@@ -9,7 +9,7 @@
 		"version": "node version-bump.mjs && git add manifest.json versions.json"
 	},
 	"keywords": [],
-	"author": "Manuel Magaña López",
+	"author": "Nao",
 	"license": "MIT",
 	"devDependencies": {
 		"@types/node": "^16.11.6",
@@ -24,9 +24,11 @@
 		"typescript": "^4.7.4"
 	},
 	"dependencies": {
+		"@anthropic-ai/sdk": "^0.91.1",
 		"@google/genai": "^1.25.0",
 		"diff": "^8.0.2",
 		"lucide-react": "^0.503.0",
+		"openai": "^6.35.0",
 		"react": "^19.2.0",
 		"react-dom": "^19.2.0"
 	}

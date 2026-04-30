@@ -138,12 +138,27 @@ export default function Message({
         {message.content}
       </div>
 
+      {/* Token/model usage footer */}
+      {message.usage && message.processed && (
+        <div className="obsidian-agent__message-meta">
+          <span>{message.usage.model}</span>
+          <span>·</span>
+          <span>{(message.usage.inputTokens + message.usage.outputTokens).toLocaleString()} tokens</span>
+          {message.usage.thinkingTokens ? (
+            <>
+              <span>·</span>
+              <span>{message.usage.thinkingTokens.toLocaleString()} thinking</span>
+            </>
+          ) : null}
+        </div>
+      )}
+
       {/* Copy button and other actions */}
       {message.content.trim() && (
         <div>
           <button
             title="Copy"
-            onClick={handleCopy} 
+            onClick={handleCopy}
             className="obsidian-agent__button-icon"
           >
             {copied ? <Check size={16} className="obsidian-agent__animate__copy-check-animate" /> : <Copy size={16} />}

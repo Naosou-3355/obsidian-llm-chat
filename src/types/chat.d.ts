@@ -26,6 +26,14 @@ export interface FormProps {
   setAvailableChats: (c: TFile[]) => void;
 }
 
+// Token/model usage metadata shown under bot messages
+export interface MessageUsage {
+  model: string;
+  inputTokens: number;
+  outputTokens: number;
+  thinkingTokens?: number;
+}
+
 // Message
 export interface Message {
   sender: "user" | "bot" | "error";
@@ -34,6 +42,7 @@ export interface Message {
   attachments: Attachment[];
   toolCalls: ToolCall[];
   processed: boolean;
+  usage?: MessageUsage;
 }
 
 export interface MessageProps {

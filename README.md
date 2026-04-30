@@ -1,89 +1,85 @@
-<h1 align="center">Obsidian Agent</h1>
+<h1 align="center">Nao's LLM</h1>
 
 <p align="center">
-  Lend your vault to an AI agent. Read, write, and search your notes with AI.<br/>
+  Your personal AI assistant in Obsidian.<br/>
+  Read, write, and search your vault with Gemini, OpenAI, Claude, or local Ollama models.
 </p>
 
 <div align="center">
-  <div>
-    <img src="https://img.shields.io/badge/Obsidian-%23483699.svg?&logo=obsidian&logoColor=white" alt="Obsidian">
-    <img src="https://img.shields.io/badge/Google%20Gemini-886FBF?logo=googlegemini&logoColor=fff" alt="Google">
-    <a href="https://coff.ee/themanuelml" style="text-decoration: none">
-      <img src="https://img.shields.io/badge/Buy%20Me%20a%20Coffee-ffdd00?&logo=buy-me-a-coffee&logoColor=black" alt="Buy mea coffe">
-    </a>
-  </div>
-  <div>
-    <img src="https://img.shields.io/badge/Licence-MIT-D93192" alt="Release">
-    <img src="https://img.shields.io/github/stars/TheManuelML/obsidian-agent?style=social" alt="GitHub stars">
-  </div>
+  <img src="https://img.shields.io/badge/Obsidian-%23483699.svg?&logo=obsidian&logoColor=white" alt="Obsidian">
+  <img src="https://img.shields.io/badge/Licence-MIT-D93192" alt="MIT Licence">
 </div>
 
-## 🚀 Overview
-A simple and lightweight AI extension for Obsidian. Delegate basic tasks to an agent that can write, edit, and create notes and folders within your vault.
+---
 
-It features a user-friendly UI, inspired by other agentic apps.
+## Overview
 
-![main UI](./imgs/demo.png)
+Nao's LLM is a lightweight AI plugin for Obsidian. It connects an AI agent to your vault so you can chat naturally, delegate note tasks, and search your knowledge base — all without leaving the app.
 
+**Supported providers:**
+- Google Gemini (gemini-2.5-flash, gemini-2.5-pro, and more)
+- OpenAI (gpt-4o, gpt-4o-mini, o3-mini)
+- Anthropic Claude (claude-opus-4-7, claude-sonnet-4-6, claude-haiku-4-5)
+- Ollama (any locally running model)
 
-## 🧠 Getting Started
+## Getting Started
 
-1. Download from **Community Plugins** in Obsidian or clone the repository inside your `~/vault/.obsidian/plugins/` folder.
-2. Enable the plugin from Obsidian's settings panel.
-3. Add the corresponding Google API key in the plugin's settings panel.
+1. Clone the repository into your vault's plugins folder:
+   ```
+   ~/vault/.obsidian/plugins/naos-llm/
+   ```
+2. Enable the plugin in Obsidian Settings → Community Plugins.
+3. Open plugin settings and enter the API key for your chosen provider (Gemini, OpenAI, or Anthropic). For Ollama, set the local endpoint URL.
+4. Click the brain icon in the sidebar or press **Ctrl+N** (Cmd+N on Mac) to open the chat panel.
 
-> [!IMPORTANT]  
-> Additionally you can add a custom URL to get connected to google services. Also, make sure you have a valid Google API key with the Gemini service enable. 
+## Features
 
-Start chating with the agent by locating  and clicking on the brain icon in the left and right sidebars. Or add a hotkey to kickly acces your most recent chat.
+### Multi-provider AI
+Switch between Gemini, OpenAI, Claude, and Ollama models from the model picker. Each provider's API key is stored separately in settings.
 
-![hotkeys](./imgs/hotkeys.png)
+### Agent Tools
+The AI agent can interact with your vault using these tools:
 
-## 💬 Chats
+| Tool | Example |
+|------|---------|
+| **Create note** | *Create a note titled 'Project Ideas'* |
+| **Read note** | *Read the active note* |
+| **Edit note** | *Add a summary to 'Book Review'* |
+| **Create folder** | *Create a folder called '2024 Plans'* |
+| **List files** | *List all files in 'Research'* |
+| **Vault search** | *Find notes about AI agents* |
+| **Note filtering** | *Give me yesterday's notes* |
+| **Web search** | *What's the weather in Tokyo today?* |
 
-Manage your chats as Obsidian notes. Rename the chat by renaming the file.
+### File Import
+Attach images, PDFs, and text files directly to your messages using the attachment button. The agent will read and reason about them alongside your message.
 
-![chat-management](./imgs/manage-chats.png)
+### Token & Model Info
+Every response shows the model used, total tokens, and thinking tokens (where applicable) in a subtle footer.
 
-> [!CAUTION]  
-> Chat files are design to store the chat history and the messages metadata. Do not modify or move them.
+### Review Changes
+When the agent edits a note, a diff review modal lets you approve or modify changes before they're saved.
 
-## 🛠️ Tools
+### Keyboard Shortcuts
+| Action | Default |
+|--------|---------|
+| Toggle chat panel | Ctrl+N / Cmd+N |
+| Switch model | (unbound — set in Obsidian Settings → Hotkeys) |
 
-The agent can use the following tools to interact with your vault:
+> **Note:** Ctrl+N / Cmd+N conflicts with Obsidian's built-in "New note" shortcut. Remap either one in Settings → Hotkeys (search for "agent" or "Nao").
 
-- **Create note**: Create a new note in your vault.   
-e.g: *Create a note titled 'Project Ideas'*
-- **Read note**: Read the content of a note.  
-e.g: *Read the active note*
-- **Edit note**: Edit an existing note.  
-e.g: *Add a summary of this text: [...] to the note 'Book Review'*
-- **Create folder**: Create a new folder.  
-e.g: *Create a folder called '2024 Plans'*
-- **List files**: List files in a folder.  
-e.g: *List all files in the folder 'Research'*
-- **Vault Search**: Search for content across your vault.  
-e.g: *Search if it exist a note called 'AI agent'*
-- **Note filtering**: Return note paths that fall inside a date range.  
-e.g: *Give me yesterday's notes*
-- **Web search**: Search for content on the web.  
-e.g: *Search on the web for todays temperature in Austin, Texas*
+## Chat Management
 
-Also you can right click over selected text, in your markdown notes, to `summarize selection` or `ask agent`.
+Chats are stored as Markdown files in a configurable folder. Rename a chat by renaming the file.
 
-<img height=400 src="./imgs/action-menu.png" alt="Obsidian">
+> **Caution:** Chat files contain message metadata. Do not edit them manually.
 
-And finally, you can also attach images by clicking the image icon, and notes with the `@` icon in the input.
+## Privacy
 
-## 🟡 Disclosures
-This plugin connects to remote Google AI services to process your requests.
+This plugin sends your messages and relevant note content to the AI provider you select (Google, OpenAI, Anthropic, or your local Ollama instance). No data is collected or transmitted by the plugin itself.
 
-> **Why is this needed?**  
-> The AI models that power these features run on external servers and require an internet connection. Your notes or queries are sent securely to the selected provider for processing, and the results are only returned to your vault.
+You are responsible for obtaining and managing your own API keys.
 
-To use these AI service, you must set a Google API key. You are responsible for obtaining and managing your API keys.
+## License
 
-## 🫱🏼‍🫲🏼 Contributing & Support
-
-- Found a bug? Open an issue [here](https://github.com/TheManuelML/obsidian-agent/issues).  
-- Want to contribute? Create a new pull request.
+MIT — see [LICENSE](LICENSE).

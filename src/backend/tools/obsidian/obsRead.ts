@@ -72,7 +72,7 @@ export async function readNote(
     let images: File[] = []
     if (settings.readImages) {
       // Extract base64 images from embeds
-      const embeds = getEmbeds(matchedFile);
+      const embeds = await getEmbeds(matchedFile);
       if (embeds.length > 0) {
         images.push(...embeds);
       }

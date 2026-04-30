@@ -2,6 +2,7 @@ import { Content, Part } from "@google/genai";
 import { getSettings } from "src/plugin";
 import { imageToBase64 } from "src/utils/parsing/imageBase64";
 import { Message } from "src/types/chat";
+import { NormalizedMessage } from "src/backend/managers/llmClient";
 
 
 // Function that prepare the prompt into inputs for the agent
@@ -92,6 +93,41 @@ export async function buildChatHistory(
   
   // Reverse back to original order
   chatHistory.reverse();
-  
+
   return chatHistory;
+}
+
+
+// Build a provider-agnostic conversation history from stored messages
+export function buildNormalizedHistory(conversation: Message[]): NormalizedMessage[] {
+  const settings = getSettings();
+  const maxTurns = settings.maxHistoryTurns;
+  if (maxTurns === 0) return [];
+
+  const selected = conversation.slice(-maxTurns * 2).reverse();
+  const result: NormalizedMessage[] = [];
+
+  for (const msg of selected) {
+    if (msg.sender === "error") continue;
+
+    if (msg.toolCalls.length > 0) {
+      result.push({
+        role: "assistant",
+        text: msg.content,
+        toolCalls: msg.toolCalls.map((tc) => ({
+          name: tc.name,
+          args: tc.args ?? {},
+          result: tc.response ?? {},
+        })),
+      });
+    } else {
+      result.push({
+        role: msg.sender === "user" ? "user" : "assistant",
+        text: msg.content,
+      });
+    }
+  }
+
+  result.reverse();
+  return result;
 }
